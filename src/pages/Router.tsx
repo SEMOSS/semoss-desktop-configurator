@@ -11,6 +11,7 @@
 import { createHashRouter, Navigate, RouterProvider } from "react-router-dom";
 import { ErrorPage } from "./ErrorPage";
 import { HomePage } from "./HomePage";
+import { IdeConfigPage } from "./IdeConfigPage";
 import { InitializedLayout } from "./layouts";
 
 const router = createHashRouter([
@@ -23,11 +24,11 @@ const router = createHashRouter([
 				index: true,
 				Component: HomePage,
 			},
-			// To add a new page:
-			// {
-			//     path: '/your-route',
-			//     Component: YourPage,
-			// },
+			{
+				// Locate / view local AI-tool config files (Codex, Claude, Copilot).
+				path: "/ide",
+				Component: IdeConfigPage,
+			},
 			{
 				// Catch-all: redirect unknown routes to home
 				path: "*",

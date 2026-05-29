@@ -1,6 +1,7 @@
 const { app, BrowserWindow, ipcMain, session } = require("electron");
 const path = require("node:path");
 const { startProductionServer } = require("./server.cjs");
+const { registerIdeConfigHandlers } = require("./ideConfig/index.cjs");
 
 // isDev: true when pointing at the Vite dev server.  False in packaged builds,
 // or when ELECTRON_PREVIEW_PROD=1 (lets you exercise the packaged code path —
@@ -324,6 +325,11 @@ async function createWindow() {
 }
 
 app.whenReady().then(() => {
+	// Register the IDE-config IPC handlers once.  They're process-global
+	// (not per-window), so this must NOT live inside createWindow — which can
+	// run again on macOS "activate".
+	registerIdeConfigHandlers();
+
 	const launch = () =>
 		createWindow().catch((e) =>
 			console.error("[Main] createWindow failed:", e),

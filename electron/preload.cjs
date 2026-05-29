@@ -18,4 +18,19 @@ contextBridge.exposeInMainWorld("electron", {
 		ipcRenderer.on("oauth-cancelled", listener);
 		return () => ipcRenderer.removeListener("oauth-cancelled", listener);
 	},
+
+	// Locate / detect / view local AI-tool config files (Codex, later Claude &
+	// Copilot).  Request-response over IPC; the main process resolves all paths
+	// from the descriptor registry, so the renderer only ever passes a targetId
+	// (+ optional fileKey).  See electron/ideConfig/.
+	ideConfig: {
+		listTargets: () => ipcRenderer.invoke("ide-config:list-targets"),
+		detect: (targetId) =>
+			ipcRenderer.invoke(
+				"ide-config:detect",
+				targetId ? { targetId } : undefined,
+			),
+		read: (targetId, fileKey) =>
+			ipcRenderer.invoke("ide-config:read", { targetId, fileKey }),
+	},
 });

@@ -24,7 +24,8 @@
 			"dist/**/*",
 			"electron/**/*",
 			"package.json",
-			"!node_modules/**/*"
+			"!node_modules/**/*",
+			"node_modules/@iarna/toml/**/*"
 		],
 		"mac": {
 			"target": [
@@ -36,6 +37,7 @@
 		}
 	},
 	"dependencies": {
+		"@iarna/toml": "^2.2.5",
 		"@radix-ui/react-label": "^2.1.8",
 		"@radix-ui/react-slot": "^1.2.4",
 		"@reduxjs/toolkit": "^2.12.0",
