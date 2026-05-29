@@ -11,8 +11,10 @@
 import { Env } from "@semoss/sdk";
 import { InsightProvider } from "@semoss/sdk/react";
 import { useEffect } from "react";
+import { Provider } from "react-redux";
 import { Toaster } from "sonner";
 import { Router } from "./pages";
+import { store } from "@/store";
 
 Env.update({
   MODULE: import.meta.env.MODULE || "",
@@ -47,13 +49,16 @@ function OauthMessageRelay() {
 
 export const App = () => {
   return (
+    // Provider exposes the Redux store (mcp/engines slices) to the whole tree.
     // InsightProvider must wrap the entire app — it starts a SEMOSS Insight session
     // and exposes the `useInsight()` hook for running Pixel commands, calling MCP tools,
     // and sending results back to Playground.
-    <InsightProvider>
-      <OauthMessageRelay />
-      <Router />
-      <Toaster />
-    </InsightProvider>
+    <Provider store={store}>
+      <InsightProvider>
+        <OauthMessageRelay />
+        <Router />
+        <Toaster />
+      </InsightProvider>
+    </Provider>
   );
 };

@@ -1,3 +1,5 @@
 // Barrel export for custom components. Import from "@/components" instead of individual files.
-export * from "./ExampleComponent";
+export * from "./Configurator";
 export * from "./LoadingScreen";
+export * from "./ModelEngines";
+export * from "./UserMCPs";
