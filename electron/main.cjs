@@ -1,12 +1,50 @@
 const { app, BrowserWindow, ipcMain, session } = require("electron");
 const path = require("node:path");
+const { startProductionServer } = require("./server.cjs");
 
-const isDev = !app.isPackaged;
+// isDev: true when pointing at the Vite dev server.  False in packaged builds,
+// or when ELECTRON_PREVIEW_PROD=1 (lets you exercise the packaged code path —
+// local proxy server included — from source without building a DMG).
+const isDev = !app.isPackaged && !process.env.ELECTRON_PREVIEW_PROD;
+
+// SEMOSS backend the renderer's relative `/Monolith` calls are forwarded to.
+// In dev the Vite dev server proxies them; in packaged builds the local server
+// in server.cjs does.  Keep ENDPOINT/MODULE in sync with .env (the renderer
+// bakes MODULE in at build time via Vite).
+const SEMOSS_ENDPOINT =
+	process.env.ENDPOINT || "https://workshop.cfg.deloitte.com/cfg-ai-dev/";
+const SEMOSS_MODULE = process.env.MODULE || "/Monolith";
+const SEMOSS_COOKIE_DOMAIN = new URL(SEMOSS_ENDPOINT).hostname;
+
+const DEV_SERVER_URL = "http://localhost:5173";
+
+// The http origin the renderer is actually served from at runtime.  Used to
+// scope the session-cookie injection below to this app's /Monolith requests.
+// Set in createWindow: the Vite dev server in dev, the local proxy in prod.
+let appOrigin = DEV_SERVER_URL;
 
 // Per-popup state tracked outside the did-create-window closure so the
 // ipcMain handler (which is not in that closure) can read and write it.
 // Keyed by the popup BrowserWindow; garbage-collected when the window is GC'd.
 const popupStateMap = new WeakMap();
+
+// Returns the SEMOSS session cookies (excluding GCP load-balancer routing
+// cookies) as a "name=value; ..." header.  Used to inject auth into the
+// insightSocket WebSocket upgrade the SDK opens (electron/server.cjs).
+async function getSessionCookieHeader() {
+	try {
+		const allCookies = await session.defaultSession.cookies.get({
+			domain: SEMOSS_COOKIE_DOMAIN,
+		});
+		return allCookies
+			.filter((c) => !c.name.startsWith("gcplb"))
+			.map((c) => `${c.name}=${c.value}`)
+			.join("; ");
+	} catch (e) {
+		console.error("[OAuth] Cookie read error:", e.message);
+		return "";
+	}
+}
 
 // Reads all non-LB cookies for workshop.cfg.deloitte.com from the Electron
 // session and registers a webRequest interceptor that injects them into every
@@ -15,7 +53,7 @@ const popupStateMap = new WeakMap();
 async function injectSessionCookies() {
 	try {
 		const allCookies = await session.defaultSession.cookies.get({
-			domain: "workshop.cfg.deloitte.com",
+			domain: SEMOSS_COOKIE_DOMAIN,
 		});
 		console.log(
 			"[OAuth] Cookies for workshop.cfg.deloitte.com:",
@@ -35,7 +73,7 @@ async function injectSessionCookies() {
 				.join("; ");
 
 			session.defaultSession.webRequest.onBeforeSendHeaders(
-				{ urls: ["http://localhost:5173/Monolith/*"] },
+				{ urls: [`${appOrigin}${SEMOSS_MODULE}/*`] },
 				(reqDetails, callback) => {
 					const existing =
 						reqDetails.requestHeaders["Cookie"] || "";
@@ -64,7 +102,7 @@ async function injectSessionCookies() {
 	}
 }
 
-function createWindow() {
+async function createWindow() {
 	const win = new BrowserWindow({
 		width: 1400,
 		height: 900,
@@ -76,10 +114,21 @@ function createWindow() {
 	});
 
 	if (isDev) {
-		win.loadURL("http://localhost:5173");
+		appOrigin = DEV_SERVER_URL;
+		win.loadURL(DEV_SERVER_URL);
 		win.webContents.openDevTools();
 	} else {
-		win.loadFile(path.join(__dirname, "../dist/index.html"));
+		// No Vite dev server in packaged builds — serve the built renderer and
+		// proxy /Monolith ourselves, then load it over http so the SDK's relative
+		// URLs and same-origin cookie / postMessage checks work exactly as in dev.
+		const { port } = await startProductionServer({
+			distDir: path.join(__dirname, "../dist"),
+			endpoint: SEMOSS_ENDPOINT,
+			module: SEMOSS_MODULE,
+			getUpstreamCookies: getSessionCookieHeader,
+		});
+		appOrigin = `http://localhost:${port}`;
+		win.loadURL(appOrigin);
 	}
 
 	// OAuth popup handling.
@@ -275,9 +324,13 @@ function createWindow() {
 }
 
 app.whenReady().then(() => {
-	createWindow();
+	const launch = () =>
+		createWindow().catch((e) =>
+			console.error("[Main] createWindow failed:", e),
+		);
+	launch();
 	app.on("activate", () => {
-		if (BrowserWindow.getAllWindows().length === 0) createWindow();
+		if (BrowserWindow.getAllWindows().length === 0) launch();
 	});
 });
 

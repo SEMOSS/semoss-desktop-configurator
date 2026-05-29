@@ -23,6 +23,32 @@ All commands run from the `client/` folder:
 - **`pnpm build`** — Production build → outputs to `portals/`
 - **`pnpm dlx shadcn@latest add [component-name]`** — Add a new shadcn/ui component
 
+## Desktop app (Electron)
+
+This app also packages as a macOS desktop binary with [electron-builder](https://www.electron.build/). The Electron shell lives in `electron/`; in packaged builds a small local server (`electron/server.cjs`) serves the built UI and proxies `/Monolith` API calls (and the `insightSocket` WebSocket) to the SEMOSS backend, replacing the Vite dev-server proxy.
+
+Run from the repo root:
+
+- **`pnpm dist:mac`** — Build the macOS binary. Outputs to `release/`:
+  - `SEMOSS Configurator-<version>-arm64.dmg` (Apple Silicon installer)
+  - `SEMOSS Configurator-<version>-arm64-mac.zip`
+- **`pnpm electron:preview`** — Run the packaged (production) code path locally without building a DMG — useful for testing the proxy and login flow.
+- **`pnpm electron:dev`** — Run the desktop app against the Vite dev server with hot reload.
+
+### Installing the build (testers)
+
+The build is ad-hoc signed (no Apple Developer ID), so macOS quarantines it on download. To run it:
+
+1. Open the `.dmg` and drag **SEMOSS Configurator** to Applications.
+2. Clear the quarantine flag:
+   ```
+   xattr -cr "/Applications/SEMOSS Configurator.app"
+   ```
+   (Or launch it once, then approve via System Settings → Privacy & Security → "Open Anyway".)
+3. Launch normally.
+
+> Builds for Apple Silicon (arm64) only. To support Intel Macs, change the `mac.target` arch to `universal` in `package.json`.
+
 ## Publishing
 
 After building, go to the SEMOSS UI editor and click "Publish files" to make changes visible to users. The `portals/` folder is what gets served.

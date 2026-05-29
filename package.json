@@ -1,11 +1,39 @@
 {
+	"name": "semoss-desktop-configurator",
+	"version": "0.1.0",
+	"description": "SEMOSS desktop configurator",
+	"author": "Deloitte",
 	"private": true,
 	"main": "electron/main.cjs",
 	"scripts": {
 		"build": "vite build",
 		"dev": "vite",
 		"electron:dev": "concurrently -k \"vite\" \"wait-on http://localhost:5173 && electron .\"",
-		"electron:build": "vite build && electron ."
+		"electron:preview": "vite build && ELECTRON_PREVIEW_PROD=1 electron .",
+		"dist": "vite build && electron-builder",
+		"dist:mac": "vite build && electron-builder --mac"
+	},
+	"build": {
+		"appId": "com.deloitte.semoss.configurator",
+		"productName": "SEMOSS Configurator",
+		"afterPack": "./scripts/after-pack.cjs",
+		"directories": {
+			"output": "release"
+		},
+		"files": [
+			"dist/**/*",
+			"electron/**/*",
+			"package.json",
+			"!node_modules/**/*"
+		],
+		"mac": {
+			"target": [
+				"dmg",
+				"zip"
+			],
+			"category": "public.app-category.developer-tools",
+			"identity": null
+		}
 	},
 	"dependencies": {
 		"@radix-ui/react-label": "^2.1.8",
@@ -33,6 +61,7 @@
 		"@vitejs/plugin-react": "^6.0.1",
 		"concurrently": "^9.1.0",
 		"electron": "^42.3.0",
+		"electron-builder": "^26.8.1",
 		"typescript": "^6.0.3",
 		"vite": "^8.0.10",
 		"wait-on": "^8.0.1"
